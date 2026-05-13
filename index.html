@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>岳阳楼记 · 背诵检查</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700;900&family=ZCOOL+XiaoWei&display=swap');
+
+  :root {
+    --bg: #f5f0e8;
+    --bg-deep: #e8dfd0;
+    --fg: #2c1810;
+    --fg-light: #6b5344;
+    --accent: #b7410e;
+    --accent-light: #d4654a;
+    --correct: #2d6a4f;
+    --correct-bg: #d8f3dc;
+    --wrong: #c1121f;
+    --wrong-bg: #fecdd3;
+    --missing: #e9c46a;
+    --missing-bg: #fef3cd;
+    --card: #fffdf8;
+    --border: #d5c9b8;
+    --shadow: rgba(44, 24, 16, 0.08);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Noto Serif SC', serif;
+    background: var(--bg);
+    color: var(--fg);
+    min-height: 100dvh;
+    position: relative;
+    overflow-x: hidden;
+  }
+
+  /* 背景纹理 */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: 
+      radial-gradient(circle at 20% 30%, rgba(183,65,14,0.04) 0%, transparent 50%),
+      radial-gradient(circle at 80% 70%, rgba(183,65,14,0.03) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* 宣纸纹理叠加 */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    opacity: 0.03;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .app {
+    position: relative;
+    z-index: 1;
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 20px 16px 100px;
+  }
+
+  /* 标题区 */
+  .header {
+    text-align: center;
+    margin-bottom: 24px;
+    padding: 24px 0 20px;
+    position: relative;
+  }
+
+  .header::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 60px;
+    height: 2px;
+    background: var(--accent);
+  }
+
+  .header h1 {
+    font-family: 'ZCOOL XiaoWei', serif;
+    font-size: 28px;
+    font-weight: 400;
+    color: var(--accent);
+    letter-spacing: 8px;
+    margin-bottom: 6px;
+  }
+
+  .header .subtitle {
+    font-size: 13px;
+    color: var(--fg-light);
+    letter-spacing: 2px;
+  }
+
+  /* 进度条 */
+  .progress-bar {
+    background: var(--bg-deep);
+    border-radius: 12px;
+    height: 8px;
+    margin-bottom: 20px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent-light));
+    border-radius: 12px;
+    transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .progress-text {
+    text-align: center;
+    font-size: 13px;
+    color: var(--fg-light);
+    margin-bottom: 16px;
+  }
+
+  /* 段落提示卡 */
+  .hint-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 16px;
+    box-shadow: 0 2px 12px var(--shadow);
+  }
+
+  .hint-label {
+    font-size: 12px;
+    color: var(--fg-light);
+    letter-spacing: 2px;
+    margin-bottom: 12px;
+  }
+
+  .hint-chars {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    font-size: 20px;
+  }
+
+  .hint-first, .hint-last {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border: 2px solid var(--accent);
+    border-radius: 8px;
+    color: var(--accent);
+    font-weight: 700;
+    background: rgba(183,65,14,0.06);
+  }
+
+  .hint-dots {
+    display: flex;
+    gap: 6px;
+  }
+
+  .hint-dots span {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--border);
+  }
+
+  .segment-length {
+    text-align: center;
+    font-size: 12px;
+    color: var(--fg-light);
+    margin-top: 10px;
+  }
+
+  /* 输入区 */
+  .input-section {
+    margin-bottom: 16px;
+  }
+
+  .input-section textarea {
+    width: 100%;
+    min-height: 120px;
+    padding: 16px;
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    background: var(--card);
+    color: var(--fg);
+    font-family: 'Noto Serif SC', serif;
+    font-size: 18px;
+    line-height: 1.8;
+    resize: vertical;
+    outline: none;
+    transition: border-color 0.3s;
+  }
+
+  .input-section textarea:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(183,65,14,0.1);
+  }
+
+  .input-section textarea::placeholder {
+    color: #bbb;
+    font-size: 15px;
+  }
+
+  /* 比对结果 */
+  .compare-result {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+    display: none;
+    animation: fadeIn 0.3s ease;
+  }
+
+  .compare-result.show { display: block; }
+
+  .compare-result .compare-label {
+    font-size: 12px;
+    color: var(--fg-light);
+    letter-spacing: 2px;
+    margin-bottom: 12px;
+  }
+
+  .char-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+    line-height: 2;
+  }
+
+  .char-item {
+    position: relative;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 28px;
+    margin: 1px 1px;
+  }
+
+  .char-item .orig {
+    font-size: 18px;
+    padding: 3px 4px;
+    border-radius: 4px;
+    line-height: 1.3;
+  }
+
+  .char-item .orig.correct { background: var(--correct-bg); color: var(--correct); }
+  .char-item .orig.wrong { background: var(--wrong-bg); color: var(--wrong); }
+  .char-item .orig.missing { background: var(--missing-bg); color: #8b6914; }
+  .char-item .orig.extra { background: var(--wrong-bg); color: var(--wrong); font-style: italic; opacity: 0.7; }
+  .char-item .orig.homophone { background: #fff4e6; color: #c07000; border: 1px dashed #c07000; }
+
+  .char-item .user-char {
+    font-size: 12px;
+    color: var(--wrong);
+    margin-top: 2px;
+    min-height: 16px;
+    line-height: 1.3;
+    font-weight: 700;
+  }
+
+  /* 统计 */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    margin-bottom: 16px;
+  }
+
+  .stat-item {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 8px;
+    text-align: center;
+  }
+
+  .stat-item .stat-val {
+    font-size: 22px;
+    font-weight: 700;
+  }
+
+  .stat-item .stat-label {
+    font-size: 11px;
+    color: var(--fg-light);
+    margin-top: 2px;
+  }
+
+  .stat-item.good .stat-val { color: var(--correct); }
+  .stat-item.bad .stat-val { color: var(--wrong); }
+  .stat-item.mid .stat-val { color: #8b6914; }
+  .stat-item.hint .stat-val { color: #c07000; }
+
+  /* 按钮 */
+  .actions {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .btn {
+    flex: 1;
+    padding: 14px 16px;
+    border: none;
+    border-radius: 10px;
+    font-family: 'Noto Serif SC', serif;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 2px;
+  }
+
+  .btn:active { transform: scale(0.97); }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #fff;
+  }
+  .btn-primary:hover { background: #9c360c; }
+
+  .btn-secondary {
+    background: var(--bg-deep);
+    color: var(--fg);
+    border: 1px solid var(--border);
+  }
+  .btn-secondary:hover { background: #ddd4c5; }
+
+  .btn-check {
+    background: var(--correct);
+    color: #fff;
+  }
+  .btn-check:hover { background: #245a40; }
+
+  .btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  /* 完成页 */
+  .complete {
+    text-align: center;
+    padding: 40px 20px;
+    display: none;
+  }
+
+  .complete.show { display: block; animation: fadeIn 0.5s ease; }
+
+  .complete .big-score {
+    font-size: 64px;
+    font-weight: 900;
+    color: var(--accent);
+    margin-bottom: 4px;
+  }
+
+  .complete .score-label {
+    font-size: 14px;
+    color: var(--fg-light);
+    margin-bottom: 24px;
+  }
+
+  .complete .final-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-bottom: 28px;
+  }
+
+  .complete .final-stat {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 8px;
+  }
+
+  .complete .final-stat .val {
+    font-size: 28px;
+    font-weight: 700;
+  }
+
+  .complete .final-stat .label {
+    font-size: 12px;
+    color: var(--fg-light);
+  }
+
+  /* 模式切换 */
+  .mode-toggle {
+    display: flex;
+    gap: 0;
+    margin-bottom: 16px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--card);
+  }
+
+  .mode-btn {
+    flex: 1;
+    padding: 10px 8px;
+    border: none;
+    background: transparent;
+    font-family: 'Noto Serif SC', serif;
+    font-size: 13px;
+    color: var(--fg-light);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .mode-btn.active {
+    background: var(--accent);
+    color: #fff;
+    font-weight: 700;
+  }
+
+  /* 原文展示（填空模式用） */
+  .skeleton-text {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+    font-size: 18px;
+    line-height: 2;
+    display: none;
+  }
+
+  .skeleton-text.show { display: block; }
+
+  .skeleton-text .sk-visible {
+    color: var(--fg);
+  }
+
+  .skeleton-text .sk-blank {
+    display: inline-block;
+    min-width: 24px;
+    border-bottom: 2px solid var(--accent);
+    margin: 0 2px;
+    text-align: center;
+    color: transparent;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* 段落切换动画 */
+  .slide-in { animation: slideIn 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateX(30px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="header">
+    <h1>岳阳楼记</h1>
+    <div class="subtitle">范仲淹 · 背诵检查</div>
+  </div>
+
+  <div id="mainSection">
+    <div class="progress-bar">
+      <div class="progress-fill" id="progressFill"></div>
+    </div>
+    <div class="progress-text" id="progressText"></div>
+
+    <div class="mode-toggle">
+      <button class="mode-btn active" data-mode="dictation" onclick="switchMode('dictation')">默写模式</button>
+      <button class="mode-btn" data-mode="fill" onclick="switchMode('fill')">填空模式</button>
+      <button class="mode-btn" data-mode="hint" onclick="switchMode('hint')">首字提示</button>
+    </div>
+
+    <div class="hint-card slide-in" id="hintCard">
+      <div class="hint-label">本段提示</div>
+      <div class="hint-chars">
+        <span class="hint-first" id="hintFirst"></span>
+        <div class="hint-dots"><span></span><span></span><span></span></div>
+        <span class="hint-last" id="hintLast"></span>
+      </div>
+      <div class="segment-length" id="segLength"></div>
+    </div>
+
+    <div class="skeleton-text" id="skeletonText"></div>
+
+    <div class="input-section">
+      <textarea id="userInput" placeholder="在此输入背诵内容…" oninput="onInput()"></textarea>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-check" onclick="checkCurrent()">检查本段</button>
+      <button class="btn btn-primary" id="btnNext" onclick="goNext()" disabled>下一段 →</button>
+    </div>
+
+    <div class="compare-result" id="compareResult">
+      <div class="compare-label">比对结果</div>
+      <div class="char-grid" id="charGrid"></div>
+    </div>
+
+    <div class="stats" id="segStats" style="display:none">
+      <div class="stat-item good">
+        <div class="stat-val" id="statCorrect">0</div>
+        <div class="stat-label">正确</div>
+      </div>
+      <div class="stat-item hint">
+        <div class="stat-val" id="statHomophone">0</div>
+        <div class="stat-label">同音</div>
+      </div>
+      <div class="stat-item bad">
+        <div class="stat-val" id="statWrong">0</div>
+        <div class="stat-label">错误</div>
+      </div>
+      <div class="stat-item mid">
+        <div class="stat-val" id="statMissing">0</div>
+        <div class="stat-label">缺漏</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="complete" id="completeSection">
+    <div style="font-size:40px; margin-bottom:12px;">🏯</div>
+    <div class="big-score" id="totalScore"></div>
+    <div class="score-label">总正确率</div>
+    <div class="final-stats">
+      <div class="final-stat">
+        <div class="val" style="color:var(--correct)" id="totalCorrect">0</div>
+        <div class="label">总正确</div>
+      </div>
+      <div class="final-stat">
+        <div class="val" style="color:#c07000" id="totalHomophone">0</div>
+        <div class="label">同音提示</div>
+      </div>
+      <div class="final-stat">
+        <div class="val" style="color:var(--wrong)" id="totalWrong">0</div>
+        <div class="label">总错误</div>
+      </div>
+      <div class="final-stat">
+        <div class="val" style="color:#8b6914" id="totalMissing">0</div>
+        <div class="label">总缺漏</div>
+      </div>
+    </div>
+    <button class="btn btn-secondary" onclick="restart()" style="width:100%">重新开始</button>
+  </div>
+</div>
+
+<script>
+const FULL_TEXT = `庆历四年春，滕子京谪守巴陵郡。越明年，政通人和，百废具兴，乃重修岳阳楼，增其旧制，刻唐贤今人诗赋于其上，属予作文以记之。
+
+予观夫巴陵胜状，在洞庭一湖。衔远山，吞长江，浩浩汤汤，横无际涯，朝晖夕阴，气象万千，此则岳阳楼之大观也，前人之述备矣。然则北通巫峡，南极潇湘，迁客骚人，多会于此，览物之情，得无异乎？
+
+若夫霪雨霏霏，连月不开，阴风怒号，浊浪排空，日星隐曜，山岳潜形，商旅不行，樯倾楫摧，薄暮冥冥，虎啸猿啼。登斯楼也，则有去国怀乡，忧谗畏讥，满目萧然，感极而悲者矣。
+
+至若春和景明，波澜不惊，上下天光，一碧万顷，沙鸥翔集，锦鳞游泳，岸芷汀兰，郁郁青青。而或长烟一空，皓月千里，浮光跃金，静影沉璧，渔歌互答，此乐何极！登斯楼也，则有心旷神怡，宠辱偕忘，把酒临风，其喜洋洋者矣。
+
+嗟夫！予尝求古仁人之心，或异二者之为，何哉？不以物喜，不以己悲，居庙堂之高则忧其民，处江湖之远则忧其君。是进亦忧，退亦忧。然则何时而乐耶？其必曰"先天下之忧而忧，后天下之乐而乐"乎。噫！微斯人，吾谁与归？
+
+时六年九月十五日。`;
+
+// 分段
+const SEGMENTS = FULL_TEXT.trim().split(/\n\n+/).map(s => s.trim()).filter(s => s.length > 0);
+
+// 统一的标点正则：匹配所有 Unicode 标点（中文/英文/全角/半角均覆盖）
+const PUNCT_RE = /\p{P}/u;           // 单字符判断
+const PUNCT_RE_G = /\p{P}/gu;        // 全局剔除
+const WS_RE_G = /[\s\u3000]+/g;     // 空白（含全角空格）
+
+// 同音/近音易错字字典（针对《岳阳楼记》常见书写混淆）
+// key = 正确字，value = 用户可能误写的同音/近音字列表
+const HOMOPHONE_MAP = {
+  '具': ['俱'],      // 百废具兴
+  '属': ['嘱'],      // 属予作文
+  '霪': ['淫'],      // 霪雨霏霏
+  '曜': ['耀'],      // 日星隐曜
+  '樯': ['墙', '蔷'], // 樯倾楫摧
+  '楫': ['辑', '揖'], // 樯倾楫摧
+  '冥': ['鸣', '明'], // 薄暮冥冥
+  '偕': ['皆', '谐'], // 宠辱偕忘
+  '谗': ['馋', '缠'], // 忧谗畏讥
+  '讥': ['饥', '机'], // 忧谗畏讥
+  '萧': ['潇', '箫'], // 满目萧然
+  '骚': ['搔', '臊'], // 迁客骚人
+  '芷': ['止', '址'], // 岸芷汀兰
+  '汀': ['厅', '听'], // 岸芷汀兰
+  '谪': ['摘', '滴'], // 滕子京谪守
+  '皓': ['浩', '镐'], // 皓月千里
+  '璧': ['壁', '辟'], // 静影沉璧
+  '汤': ['荡'],      // 浩浩汤汤
+  '涯': ['崖'],      // 横无际涯
+  '渔': ['鱼'],      // 渔歌互答
+  '郁': ['玉', '育'], // 郁郁青青
+  '嗟': ['磋', '蹉'], // 嗟夫
+  '耶': ['爷'],      // 何时而乐耶
+  '噫': ['咦', '医']  // 噫
+};
+
+function isHomophone(origCh, inputCh) {
+  return !!(HOMOPHONE_MAP[origCh] && HOMOPHONE_MAP[origCh].indexOf(inputCh) !== -1);
+}
+
+let currentSeg = 0;
+let mode = 'dictation'; // dictation, fill, hint
+let allResults = []; // {correct, wrong, missing}
+let checked = false;
+
+function init() {
+  currentSeg = 0;
+  allResults = [];
+  checked = false;
+  document.getElementById('mainSection').style.display = '';
+  document.getElementById('completeSection').classList.remove('show');
+  renderSegment();
+}
+
+function renderSegment() {
+  const seg = SEGMENTS[currentSeg];
+  const total = SEGMENTS.length;
+
+  // 进度
+  const pct = ((currentSeg) / total * 100);
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressText').textContent = `第 ${currentSeg + 1} 段 / 共 ${total} 段`;
+
+  // 首尾字提示
+  const chars = seg.replace(WS_RE_G, '').replace(PUNCT_RE_G, '');
+  document.getElementById('hintFirst').textContent = chars[0] || '';
+  document.getElementById('hintLast').textContent = chars[chars.length - 1] || '';
+  const hanCount = chars.length;
+  document.getElementById('segLength').textContent = `本段共 ${hanCount} 字`;
+
+  // 动画
+  document.getElementById('hintCard').classList.remove('slide-in');
+  void document.getElementById('hintCard').offsetWidth;
+  document.getElementById('hintCard').classList.add('slide-in');
+
+  // 输入框
+  const textarea = document.getElementById('userInput');
+  textarea.value = '';
+  textarea.placeholder = mode === 'hint' ? '每句首字已给出，补全即可…' : '在此输入背诵内容…';
+  textarea.disabled = false;
+
+  // 填空骨架
+  const skeletonEl = document.getElementById('skeletonText');
+  if (mode === 'fill') {
+    skeletonEl.classList.add('show');
+    skeletonEl.innerHTML = buildSkeleton(seg);
+  } else if (mode === 'hint') {
+    skeletonEl.classList.add('show');
+    skeletonEl.innerHTML = buildHintSkeleton(seg);
+  } else {
+    skeletonEl.classList.remove('show');
+  }
+
+  // 重置比对
+  document.getElementById('compareResult').classList.remove('show');
+  document.getElementById('segStats').style.display = 'none';
+  document.getElementById('btnNext').disabled = true;
+  checked = false;
+
+  textarea.focus();
+}
+
+function buildSkeleton(text) {
+  // 保留标点和每句首字，其余挖空
+  let html = '';
+  let i = 0;
+  for (const ch of text) {
+    if (/\s/.test(ch)) { html += ' '; i++; continue; }
+    if (PUNCT_RE.test(ch)) {
+      html += `<span class="sk-visible">${ch}</span>`;
+      i++; continue;
+    }
+    // 每句首字保留（标点后第一个字，或段首）
+    const prev = i > 0 ? text[i - 1] : '';
+    if (i === 0 || PUNCT_RE.test(prev) || /\s/.test(prev)) {
+      html += `<span class="sk-visible">${ch}</span>`;
+    } else {
+      html += `<span class="sk-blank">_</span>`;
+    }
+    i++;
+  }
+  return html;
+}
+
+function buildHintSkeleton(text) {
+  // 只显示每句首字和标点
+  let html = '';
+  let i = 0;
+  for (const ch of text) {
+    if (/\s/.test(ch)) { html += ' '; i++; continue; }
+    if (PUNCT_RE.test(ch)) {
+      html += `<span class="sk-visible">${ch}</span>`;
+      i++; continue;
+    }
+    const prev = i > 0 ? text[i - 1] : '';
+    if (i === 0 || PUNCT_RE.test(prev) || /\s/.test(prev)) {
+      html += `<span class="sk-visible" style="color:var(--accent);font-weight:700">${ch}</span>`;
+    } else {
+      html += `<span class="sk-blank">_</span>`;
+    }
+    i++;
+  }
+  return html;
+}
+
+function switchMode(m) {
+  mode = m;
+  document.querySelectorAll('.mode-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.mode === m);
+  });
+  renderSegment();
+}
+
+function normalizeStr(s) {
+  // 去掉空白和所有 Unicode 标点（中/英/全/半角），只保留汉字用于比对
+  return s.replace(WS_RE_G, '').replace(PUNCT_RE_G, '');
+}
+
+function checkCurrent() {
+  const seg = SEGMENTS[currentSeg];
+  const orig = normalizeStr(seg);
+  const input = normalizeStr(document.getElementById('userInput').value);
+
+  if (input.length === 0) {
+    alert('请先输入背诵内容！');
+    return;
+  }
+
+  const result = diffChars(orig, input);
+  allResults[currentSeg] = result;
+
+  // 渲染比对
+  const grid = document.getElementById('charGrid');
+  grid.innerHTML = renderDiff(seg, orig, input, result);
+
+  document.getElementById('compareResult').classList.add('show');
+  document.getElementById('segStats').style.display = '';
+
+  document.getElementById('statCorrect').textContent = result.correct;
+  document.getElementById('statHomophone').textContent = result.homophone;
+  document.getElementById('statWrong').textContent = result.wrong;
+  document.getElementById('statMissing').textContent = result.missing;
+
+  document.getElementById('btnNext').disabled = false;
+  document.getElementById('userInput').disabled = true;
+  checked = true;
+}
+
+function diffChars(orig, input) {
+  // LCS 对齐，生成逐字对照序列
+  const m = orig.length, n = input.length;
+  const dp = Array.from({length: m + 1}, () => new Uint16Array(n + 1));
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      dp[i][j] = orig[i-1] === input[j-1]
+        ? dp[i-1][j-1] + 1
+        : Math.max(dp[i-1][j], dp[i][j-1]);
+    }
+  }
+
+  // 回溯生成对齐序列: [{type, origChar, inputChar}]
+  const align = [];
+  let i = m, j = n;
+  while (i > 0 || j > 0) {
+    if (i > 0 && j > 0 && orig[i-1] === input[j-1]) {
+      align.push({ type: 'correct', origChar: orig[i-1], inputChar: input[j-1] });
+      i--; j--;
+    } else if (i > 0 && j > 0 && dp[i-1][j-1] >= dp[i-1][j] && dp[i-1][j-1] >= dp[i][j-1]) {
+      // 替换：原文和输入都有字，但不匹配
+      align.push({ type: 'wrong', origChar: orig[i-1], inputChar: input[j-1] });
+      i--; j--;
+    } else if (j > 0 && (i === 0 || dp[i][j-1] >= dp[i-1][j])) {
+      // 多打：输入有，原文没有
+      align.push({ type: 'extra', origChar: null, inputChar: input[j-1] });
+      j--;
+    } else {
+      // 缺漏：原文有，输入没有
+      align.push({ type: 'missing', origChar: orig[i-1], inputChar: null });
+      i--;
+    }
+  }
+  align.reverse();
+
+  let correct = 0, wrong = 0, missing = 0, homophone = 0;
+  align.forEach(a => {
+    if (a.type === 'correct') {
+      correct++;
+    } else if (a.type === 'wrong') {
+      // 替换字若为同音易错字，降级为 homophone（提示但不判错）
+      if (isHomophone(a.origChar, a.inputChar)) {
+        a.type = 'homophone';
+        homophone++;
+      } else {
+        wrong++;
+      }
+    } else if (a.type === 'missing') {
+      missing++;
+    } else if (a.type === 'extra') {
+      wrong++; // 多打也算错误
+    }
+  });
+
+  return { correct, wrong, missing, homophone, align };
+}
+
+function renderDiff(segRaw, orig, input, result) {
+  // 逐字对照：上排原文，下排用户输入，标点单独显示
+  const { align } = result;
+  let html = '';
+
+  // 先把原文中的标点位置记录下来
+  // 构建：标点从 segRaw 提取，汉字对齐从 align 取
+  let ai = 0; // align index
+  for (const ch of segRaw) {
+    if (/\s/.test(ch)) continue;
+    if (PUNCT_RE.test(ch)) {
+      // 标点：上下都显示标点，灰色
+      html += `<span class="char-item"><span class="orig" style="color:var(--fg-light)">${ch}</span><span class="user-char" style="color:var(--fg-light)">${ch}</span></span>`;
+      continue;
+    }
+    // 汉字：从 align 取对齐信息
+    if (ai >= align.length) break;
+    const a = align[ai];
+    ai++;
+
+    if (a.type === 'correct') {
+      html += `<span class="char-item"><span class="orig correct">${a.origChar}</span><span class="user-char" style="color:var(--correct)">✓</span></span>`;
+    } else if (a.type === 'homophone') {
+      html += `<span class="char-item" title="同音易错：应为「${a.origChar}」"><span class="orig homophone">${a.origChar}</span><span class="user-char" style="color:#c07000">${a.inputChar}⚠</span></span>`;
+    } else if (a.type === 'wrong') {
+      html += `<span class="char-item"><span class="orig wrong">${a.origChar}</span><span class="user-char">${a.inputChar}</span></span>`;
+    } else if (a.type === 'missing') {
+      html += `<span class="char-item"><span class="orig missing">${a.origChar}</span><span class="user-char">—</span></span>`;
+    } else if (a.type === 'extra') {
+      html += `<span class="char-item"><span class="orig" style="color:transparent">∅</span><span class="user-char" style="color:var(--wrong)">${a.inputChar}➕</span></span>`;
+    }
+  }
+
+  // 处理 align 中剩余的 extra 项（用户多打在末尾的）
+  while (ai < align.length) {
+    const a = align[ai];
+    ai++;
+    if (a.type === 'extra') {
+      html += `<span class="char-item"><span class="orig" style="color:transparent">∅</span><span class="user-char" style="color:var(--wrong)">${a.inputChar}➕</span></span>`;
+    }
+  }
+
+  return html;
+}
+
+function goNext() {
+  if (!checked) return;
+  currentSeg++;
+  if (currentSeg >= SEGMENTS.length) {
+    showComplete();
+  } else {
+    renderSegment();
+  }
+}
+
+function showComplete() {
+  document.getElementById('mainSection').style.display = 'none';
+  
+  let totalCorrect = 0, totalWrong = 0, totalMissing = 0, totalHomophone = 0;
+  allResults.forEach(r => {
+    if (r) {
+      totalCorrect += r.correct;
+      totalWrong += r.wrong;
+      totalMissing += r.missing;
+      totalHomophone += (r.homophone || 0);
+    }
+  });
+
+  // 同音提示计为正确；总字数含所有类型
+  const total = totalCorrect + totalHomophone + totalWrong + totalMissing;
+  const score = total > 0 ? Math.round((totalCorrect + totalHomophone) / total * 100) : 0;
+
+  document.getElementById('totalScore').textContent = score + '%';
+  document.getElementById('totalCorrect').textContent = totalCorrect;
+  document.getElementById('totalHomophone').textContent = totalHomophone;
+  document.getElementById('totalWrong').textContent = totalWrong;
+  document.getElementById('totalMissing').textContent = totalMissing;
+
+  document.getElementById('completeSection').classList.add('show');
+  document.getElementById('progressFill').style.width = '100%';
+}
+
+function restart() {
+  init();
+}
+
+function onInput() {
+  // 实时输入，不做操作
+}
+
+// 启动
+init();
+</script>
+
+</body>
+</html>
